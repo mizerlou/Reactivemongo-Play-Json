@@ -2,7 +2,7 @@ organization := "org.reactivemongo"
 
 name := "reactivemongo-play-json"
 
-version := "0.12.0-SNAPSHOT"
+version := "0.11.9"
 
 scalaVersion := "2.11.7"
 
@@ -19,7 +19,7 @@ resolvers ++= Seq(
   "Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/")
 
 libraryDependencies ++= Seq(
-  "org.reactivemongo" %% "reactivemongo" % "0.12.0-SNAPSHOT" % "provided" cross CrossVersion.binary,
+  "org.reactivemongo" %% "reactivemongo" % "0.11.9" % "provided" cross CrossVersion.binary,
   "com.typesafe.play" %% "play-json" % "2.4.5" % "provided" cross CrossVersion.binary)
 
 libraryDependencies ++= Seq(
