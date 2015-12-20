@@ -1,6 +1,7 @@
 import play.api.libs.json.{ Json, JsNumber, JsString, JsObject, __ }
+
 import reactivemongo.bson.{ BSONArray, BSONDocument }
-import org.reactivemongo.play.json._
+import reactivemongo.play.json._
 
 object JsonSpec extends org.specs2.mutable.Specification {
   "JSON" title
