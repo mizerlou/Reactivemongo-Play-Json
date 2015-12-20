@@ -2,7 +2,7 @@ organization := "org.reactivemongo"
 
 name := "reactivemongo-play-json"
 
-version := "0.11.9"
+version := "0.11.9-1"
 
 scalaVersion := "2.11.7"
 
@@ -10,7 +10,7 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-target:jvm-1.8")
 
 scalacOptions in (Compile, doc) := Seq("-Ywarn-unused-import", "-unchecked", "-deprecation")
 
-crossScalaVersions := Seq("2.11.6")
+crossScalaVersions := Seq("2.11.7")
 
 crossVersion := CrossVersion.binary
 
