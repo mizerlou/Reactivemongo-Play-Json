@@ -22,9 +22,21 @@ libraryDependencies ++= Seq(
   "org.reactivemongo" %% "reactivemongo" % "0.12.0-SNAPSHOT" % "provided" cross CrossVersion.binary,
   "com.typesafe.play" %% "play-json" % "2.4.5" % "provided" cross CrossVersion.binary)
 
-libraryDependencies ++= Seq(
+// Test
+
+testOptions in Test += Tests.Cleanup(cl => {
+  import scala.language.reflectiveCalls
+  val c = cl.loadClass("Common$")
+  type M = { def closeDriver(): Unit }
+  val m: M = c.getField("MODULE$").get(null).asInstanceOf[M]
+  m.closeDriver()
+})
+
+libraryDependencies ++= (Seq(
   "specs2-core"
-).map("org.specs2" %% _ % "2.4.9" % Test)
+).map("org.specs2" %% _ % "2.4.9") ++ Seq(
+  "org.slf4j" % "slf4j-simple" % "1.7.13")).
+  map(_ % Test)
 
 // Publish
 
