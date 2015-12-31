@@ -3,3 +3,6 @@ scala:
 - 2.11.7
 jdk:
 - oraclejdk8
+before_install: sudo ./.travis_scripts/beforeInstall.sh
+script: ./.travis_scripts/validate.sh
+after_success: ./.travis_scripts/afterSuccess.sh
