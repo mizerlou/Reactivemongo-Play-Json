@@ -46,6 +46,7 @@ import reactivemongo.bson.{
   BSONDocument,
   BSONDouble,
   BSONInteger,
+  BSONJavaScript,
   BSONLong,
   BSONNull,
   BSONSymbol,
@@ -181,6 +182,21 @@ sealed trait BSONFormats extends LowerImplicitBSONHandlers {
     private object OidValue {
       def unapply(obj: JsObject): Option[String] =
         if (obj.fields.size != 1) None else (obj \ "$oid").asOpt[String]
+    }
+  }
+
+  implicit object BSONJavaScriptFormat extends PartialFormat[BSONJavaScript] {
+    val partialReads: PartialFunction[JsValue, JsResult[BSONJavaScript]] = {
+      case JavascriptValue(oid) => JsSuccess(BSONJavaScript(oid))
+    }
+
+    val partialWrites: PartialFunction[BSONValue, JsValue] = {
+      case BSONJavaScript(code) => Json.obj("$javascript" -> code)
+    }
+
+    private object JavascriptValue {
+      def unapply(obj: JsObject): Option[String] =
+        if (obj.fields.size != 1) None else (obj \ "$javascript").asOpt[String]
     }
   }
 
@@ -342,6 +358,7 @@ sealed trait BSONFormats extends LowerImplicitBSONHandlers {
   def toBSON(json: JsValue): JsResult[BSONValue] =
     BSONStringFormat.partialReads.
       orElse(BSONObjectIDFormat.partialReads).
+      orElse(BSONJavaScriptFormat.partialReads).
       orElse(BSONDateTimeFormat.partialReads).
       orElse(BSONTimestampFormat.partialReads).
       orElse(BSONBinaryFormat.partialReads).
@@ -362,6 +379,7 @@ sealed trait BSONFormats extends LowerImplicitBSONHandlers {
       })
 
   def toJSON(bson: BSONValue): JsValue = BSONObjectIDFormat.partialWrites.
+    orElse(BSONJavaScriptFormat.partialWrites).
     orElse(BSONDateTimeFormat.partialWrites).
     orElse(BSONTimestampFormat.partialWrites).
     orElse(BSONBinaryFormat.partialWrites).

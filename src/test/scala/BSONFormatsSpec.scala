@@ -1,4 +1,4 @@
-import play.api.libs.json.{ JsError, Json, JsSuccess, __ }
+import play.api.libs.json.{ JsError, Json, JsResult, JsSuccess, __ }
 import reactivemongo.bson._
 import reactivemongo.play.json.BSONFormats._
 
@@ -6,7 +6,7 @@ object BSONFormatsSpec extends org.specs2.mutable.Specification {
   "BSON/JSON formats" title
 
   "BSONFormats" should {
-    "handle BSONObjectID" in {
+    "handle object ID ($oid) as a separate value" in {
       val oid = BSONObjectID.generate
       val oidAgain = Json.fromJson[BSONObjectID](Json.toJson(oid))
       oid mustEqual oidAgain.get
@@ -23,16 +23,38 @@ object BSONFormatsSpec extends org.specs2.mutable.Specification {
       }
     }
 
-    "handle BSONObjectID" in {
+    "write BSONObjectID as JSON" in {
       val joid2 = Json.obj(
         "$oid" -> "5150806842b329bae81de713", "truc" -> "plop"
       )
-
       val oid = BSONObjectID.generate
-      val joid = Json.toJson(oid)
 
-      toJSON(oid) mustEqual joid
+      toJSON(oid) mustEqual Json.toJson(oid)
     }
+
+    // ---
+
+    "handle JavaScript with extended JSON syntax" >> {
+      """from JSON { "$javascript": "bar()" }""" in {
+        Json.fromJson[BSONJavaScript](Json.obj("$javascript" -> "bar()")).
+          aka("from JSON") must beLike[JsResult[BSONJavaScript]] {
+            case JsSuccess(BSONJavaScript("bar()"), _) => ok
+          }
+      }
+
+      val code2 = "lorem();ipsum('bar')"
+      s"""from BSONJavaScript("$code2")""" in {
+        Json.toJson(BSONJavaScript(code2)).
+          aka("from BSON") must_== Json.obj("$javascript" -> code2)
+      }
+
+      s"from BSONValue" in {
+        val bson: BSONValue = BSONJavaScript("foo()")
+        Json.toJson(bson) must_== Json.obj("$javascript" -> "foo()")
+      }
+    }
+
+    // ---
 
     "handle BSONTimestamp" in {
       val bsonTs = BSONTimestamp(6065270725701271558L)
@@ -74,22 +96,22 @@ object BSONFormatsSpec extends org.specs2.mutable.Specification {
       bsymbol mustEqual bsymbolAgain.get
     }
 
-    "should convert special Symbol notation" in {
+    "convert special Symbol notation" in {
       val symbol = 'sss
       val bsymbol = BSONSymbol(symbol.toString())
       val jsymbol = Json.obj("$symbol" -> symbol.toString)
       Json.fromJson[BSONSymbol](jsymbol).get mustEqual bsymbol
     }
 
-    "should convert special Symbol notation only if there is only one field named $symbol of type String" in {
+    "convert special Symbol notation only if there is only one field named $symbol of type String" in {
       val jsymbol = Json.obj("$symbol" -> "sym", "truc" -> "plop")
       Json.fromJson[BSONSymbol](jsymbol) match {
         case JsError(_) => success
-        case s          => failure(s"should not be a JsSuccess $s")
+        case s          => failure(s"not be a JsSuccess $s")
       }
     }
 
-    """should convert JSON regex { "$regex": "^toto", "$options": "i" }""" in {
+    """convert JSON regex { "$regex": "^toto", "$options": "i" }""" in {
       val js = Json.obj("$regex" -> "^toto", "$options" -> "i")
       val bson = Json.fromJson[BSONRegex](js).get
       bson mustEqual BSONRegex("^toto", "i")
@@ -97,21 +119,21 @@ object BSONFormatsSpec extends org.specs2.mutable.Specification {
       js mustEqual deser
     }
 
-    """should convert JSON regex { "$options": "i", "$regex": "^toto" }""" in {
+    """convert JSON regex { "$options": "i", "$regex": "^toto" }""" in {
       val js = Json.obj("$options" -> "i", "$regex" -> "^toto")
       val bson = Json.fromJson[BSONRegex](js).get
       bson mustEqual BSONRegex("^toto", "i")
       Json.toJson(bson) must_== Json.obj("$regex" -> "^toto", "$options" -> "i")
     }
 
-    """should convert JSON regex { "$regex": "^toto" }""" in {
+    """convert JSON regex { "$regex": "^toto" }""" in {
       val js = Json.obj("$regex" -> "^toto")
       val bson = Json.fromJson[BSONRegex](js).get
 
       bson mustEqual BSONRegex("^toto", "") and (js mustEqual Json.toJson(bson))
     }
 
-    """should fail converting json regex { "$options": "i", "$regex": 98 }""" in {
+    """fail converting json regex { "$options": "i", "$regex": 98 }""" in {
       val js = Json.obj("$options" -> "i", "$regex" -> 98)
       val result = Json.fromJson[BSONRegex](js)
       result.fold(
@@ -122,7 +144,7 @@ object BSONFormatsSpec extends org.specs2.mutable.Specification {
       ok
     }
 
-    """should convert JSON timestamp { "$time": 1412180887, "$i": 6 }""" in {
+    """convert JSON timestamp { "$time": 1412180887, "$i": 6 }""" in {
       val jsonTs = Json.parse("""{ "$time": 1412180887, "$i": 6 }""")
 
       Json.fromJson[BSONTimestamp](jsonTs) must beLike {
