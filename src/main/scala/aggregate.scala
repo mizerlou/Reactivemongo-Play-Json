@@ -15,7 +15,7 @@
  */
 package reactivemongo.play.json.commands
 
-import play.api.libs.json.{ JsValue, Json }
+import play.api.libs.json.{ JsValue, Json }, Json.toJson
 
 import reactivemongo.api.commands.AggregationFramework
 import reactivemongo.play.json.JSONSerializationPack
@@ -33,16 +33,17 @@ object JSONAggregationFramework
   protected def elementProducer(name: String, value: JsValue) =
     name -> value
 
-  protected def booleanValue(b: Boolean): JsValue = Json.toJson(b)
-  protected def intValue(i: Int): JsValue = Json.toJson(i)
-  protected def longValue(l: Long): JsValue = Json.toJson(l)
-  protected def doubleValue(d: Double): JsValue = Json.toJson(d)
-  protected def stringValue(s: String): JsValue = Json.toJson(s)
+  protected def booleanValue(b: Boolean): JsValue = toJson(b)
+  protected def intValue(i: Int): JsValue = toJson(i)
+  protected def longValue(l: Long): JsValue = toJson(l)
+  protected def doubleValue(d: Double): JsValue = toJson(d)
+  protected def stringValue(s: String): JsValue = toJson(s)
 }
 
 object JSONAggregationImplicits {
   import play.api.libs.json.{ JsArray, JsObject, JsValue, OWrites }
   import reactivemongo.api.commands.ResolvedCollectionCommand
+  import reactivemongo.core.protocol.MongoWireVersion
   import JSONAggregationFramework.{ Aggregate, AggregationResult }
   import reactivemongo.play.json.BSONFormats
 
@@ -50,18 +51,28 @@ object JSONAggregationImplicits {
       extends OWrites[ResolvedCollectionCommand[Aggregate]] {
     def writes(agg: ResolvedCollectionCommand[Aggregate]): JsObject = {
       val fields = Map[String, JsValue](
-        "aggregate" -> Json.toJson(agg.collection),
+        "aggregate" -> toJson(agg.collection),
         "pipeline" -> JsArray(agg.command.pipeline.map(_.makePipe)),
-        "explain" -> Json.toJson(agg.command.explain),
-        "allowDiskUse" -> Json.toJson(agg.command.allowDiskUse)
+        "explain" -> toJson(agg.command.explain),
+        "allowDiskUse" -> toJson(agg.command.allowDiskUse)
       )
 
-      val optFields: List[(String, JsValue)] = List(
-        agg.command.cursor.map(c => "cursor" -> Json.toJson(c.batchSize))
-      ).
-        flatten
+      def optFields: List[Option[(String, JsValue)]] = List(
+        agg.command.cursor.map(c => "cursor" -> Json.obj(
+          "batchSize" -> c.batchSize
+        ))
+      )
 
-      JsObject(fields ++ optFields)
+      def options = {
+        if (agg.command.wireVersion < MongoWireVersion.V32) optFields.flatten
+        else (optFields ++ List(
+          Some(agg.command.bypassDocumentValidation).map(by =>
+            "bypassDocumentValidation" -> toJson(by)),
+          agg.command.readConcern.map(rc => "readConcern" -> toJson(rc.level))
+        )).flatten
+      }
+
+      JsObject(fields ++ options)
     }
   }
 
