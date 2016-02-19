@@ -2,7 +2,11 @@ organization := "org.reactivemongo"
 
 name := "reactivemongo-play-json"
 
-version := "0.11.9-1"
+val buildVersion = "0.11.10"
+
+version := buildVersion
+
+version := buildVersion
 
 scalaVersion := "2.11.7"
 
@@ -10,7 +14,7 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-target:jvm-1.8")
 
 scalacOptions in (Compile, doc) := Seq("-Ywarn-unused-import", "-unchecked", "-deprecation")
 
-crossScalaVersions := Seq("2.11.6")
+crossScalaVersions := Seq("2.11.7")
 
 crossVersion := CrossVersion.binary
 
@@ -19,7 +23,7 @@ resolvers ++= Seq(
   "Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/")
 
 libraryDependencies ++= Seq(
-  "org.reactivemongo" %% "reactivemongo" % "0.11.9" % "provided" cross CrossVersion.binary,
+  "org.reactivemongo" %% "reactivemongo" % buildVersion % "provided" cross CrossVersion.binary,
   "com.typesafe.play" %% "play-json" % "2.4.5" % "provided" cross CrossVersion.binary)
 
 // Test

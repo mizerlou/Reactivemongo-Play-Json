@@ -46,6 +46,7 @@ import reactivemongo.bson.{
   BSONDocument,
   BSONDouble,
   BSONInteger,
+  BSONJavaScript,
   BSONLong,
   BSONNull,
   BSONSymbol,
@@ -181,6 +182,21 @@ sealed trait BSONFormats extends LowerImplicitBSONHandlers {
     private object OidValue {
       def unapply(obj: JsObject): Option[String] =
         if (obj.fields.size != 1) None else (obj \ "$oid").asOpt[String]
+    }
+  }
+
+  implicit object BSONJavaScriptFormat extends PartialFormat[BSONJavaScript] {
+    val partialReads: PartialFunction[JsValue, JsResult[BSONJavaScript]] = {
+      case JavascriptValue(oid) => JsSuccess(BSONJavaScript(oid))
+    }
+
+    val partialWrites: PartialFunction[BSONValue, JsValue] = {
+      case BSONJavaScript(code) => Json.obj("$javascript" -> code)
+    }
+
+    private object JavascriptValue {
+      def unapply(obj: JsObject): Option[String] =
+        if (obj.fields.size != 1) None else (obj \ "$javascript").asOpt[String]
     }
   }
 
@@ -342,6 +358,7 @@ sealed trait BSONFormats extends LowerImplicitBSONHandlers {
   def toBSON(json: JsValue): JsResult[BSONValue] =
     BSONStringFormat.partialReads.
       orElse(BSONObjectIDFormat.partialReads).
+      orElse(BSONJavaScriptFormat.partialReads).
       orElse(BSONDateTimeFormat.partialReads).
       orElse(BSONTimestampFormat.partialReads).
       orElse(BSONBinaryFormat.partialReads).
@@ -362,6 +379,7 @@ sealed trait BSONFormats extends LowerImplicitBSONHandlers {
       })
 
   def toJSON(bson: BSONValue): JsValue = BSONObjectIDFormat.partialWrites.
+    orElse(BSONJavaScriptFormat.partialWrites).
     orElse(BSONDateTimeFormat.partialWrites).
     orElse(BSONTimestampFormat.partialWrites).
     orElse(BSONBinaryFormat.partialWrites).
@@ -402,6 +420,7 @@ object Writers {
 }
 
 object JSONSerializationPack extends reactivemongo.api.SerializationPack {
+  import scala.util.{ Failure, Success, Try }
   import reactivemongo.bson.buffer.{
     DefaultBufferHandler,
     ReadableBuffer,
@@ -415,6 +434,8 @@ object JSONSerializationPack extends reactivemongo.api.SerializationPack {
   type Document = JsObject
   type Writer[A] = OWrites[A]
   type Reader[A] = Reads[A]
+  type NarrowValueReader[A] = Reads[A]
+  private[reactivemongo]type WidenValueReader[A] = Reads[A]
 
   object IdentityReader extends Reader[Document] {
     def reads(js: JsValue): JsResult[Document] = js match {
@@ -454,6 +475,16 @@ object JSONSerializationPack extends reactivemongo.api.SerializationPack {
   }
 
   def isEmpty(document: Document): Boolean = document.values.isEmpty
+
+  def widenReader[T](r: NarrowValueReader[T]): WidenValueReader[T] = r
+
+  def readValue[A](value: Value, reader: WidenValueReader[A]): Try[A] =
+    reader.reads(value) match {
+      case err @ JsError(_) => Failure(new scala.RuntimeException(s"fails to reads the value: ${Json stringify value}; ${Json stringify JsError.toJson(err)}"))
+
+      case JsSuccess(v, _)  => Success(v)
+    }
+
 }
 
 import play.api.libs.json.{ JsObject, JsValue }
