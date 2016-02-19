@@ -20,11 +20,14 @@ import play.api.libs.json.{
   JsNumber,
   JsObject,
   JsResult,
+  JsString,
   JsSuccess,
   JsValue,
-  Reads
+  Reads,
+  Writes
 }
 
+import reactivemongo.api.ReadConcern
 import reactivemongo.api.commands.{ CommandError, UnitBox }
 
 import reactivemongo.play.json.JSONSerializationPack
@@ -33,6 +36,10 @@ object CommonImplicits {
   implicit object UnitBoxReader
       extends DealingWithGenericCommandErrorsReader[UnitBox.type] {
     def readResult(doc: JsObject): UnitBox.type = UnitBox
+  }
+
+  implicit object ReadConcernWriter extends Writes[ReadConcern] {
+    def writes(concern: ReadConcern) = JsString(concern.level)
   }
 }
 

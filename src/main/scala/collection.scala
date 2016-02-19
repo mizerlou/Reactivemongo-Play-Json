@@ -17,6 +17,8 @@ package reactivemongo.play.json.collection
 
 import scala.concurrent.{ ExecutionContext, Future }
 
+import scala.collection.immutable.ListSet
+
 import play.api.libs.json.{
   Json,
   JsArray,
@@ -95,6 +97,8 @@ object JSONBatchCommands
     WriteConcernError
   }
   import reactivemongo.play.json.readOpt
+  import reactivemongo.core.protocol.MongoWireVersion
+  import reactivemongo.play.json.commands.CommonImplicits
 
   val pack = JSONSerializationPack
 
@@ -111,11 +115,19 @@ object JSONBatchCommands
   implicit object DistinctWriter
       extends pack.Writer[ResolvedCollectionCommand[DistinctCommand.Distinct]] {
 
-    def writes(cmd: ResolvedCollectionCommand[DistinctCommand.Distinct]): pack.Document = Json.obj(
-      "distinct" -> cmd.collection,
-      "key" -> cmd.command.keyString,
-      "query" -> cmd.command.query
-    )
+    import CommonImplicits.ReadConcernWriter
+
+    def writes(cmd: ResolvedCollectionCommand[DistinctCommand.Distinct]): pack.Document = {
+      val c = Json.obj(
+        "distinct" -> cmd.collection,
+        "key" -> cmd.command.keyString,
+        "query" -> cmd.command.query
+      )
+
+      if (cmd.command.version < MongoWireVersion.V32) c else {
+        c + ("readConcern" -> ReadConcernWriter.writes(cmd.command.readConcern))
+      }
+    }
   }
 
   implicit object DistinctResultReader
@@ -126,7 +138,9 @@ object JSONBatchCommands
     def reads(js: JsValue): JsResult[DistinctCommand.DistinctResult] =
       (js \ "values").toEither match {
         case Right(JsArray(values)) =>
-          JsSuccess(DistinctCommand.DistinctResult(values.toList))
+          JsSuccess(DistinctCommand.DistinctResult(
+            ListSet.empty[JsValue] ++ values
+          ))
 
         case Right(v)    => JsError(path, s"invalid JSON: $v")
         case Left(error) => JsError(Seq(path -> Seq(error)))
