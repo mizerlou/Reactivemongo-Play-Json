@@ -17,8 +17,6 @@ package reactivemongo.play.json.collection
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import scala.collection.immutable.ListSet
-
 import play.api.libs.json.{
   Json,
   JsArray,
@@ -29,7 +27,7 @@ import play.api.libs.json.{
   JsUndefined,
   JsSuccess,
   Writes
-}
+}, Json.JsValueWrapper
 
 import reactivemongo.api.{
   Collection,
@@ -67,6 +65,7 @@ object JSONBatchCommands
     JsNull,
     JsNumber,
     JsValue,
+    JsObject,
     JsString,
     JsResult,
     JsSuccess,
@@ -96,6 +95,7 @@ object JSONBatchCommands
     WriteError,
     WriteConcernError
   }
+  import reactivemongo.core.protocol.MongoWireVersion
   import reactivemongo.play.json.readOpt
   import reactivemongo.core.protocol.MongoWireVersion
   import reactivemongo.play.json.commands.CommonImplicits
@@ -132,6 +132,8 @@ object JSONBatchCommands
 
   implicit object DistinctResultReader
       extends pack.Reader[DistinctCommand.DistinctResult] {
+
+    import scala.collection.immutable.ListSet
 
     private val path = JsPath \ "values"
 
