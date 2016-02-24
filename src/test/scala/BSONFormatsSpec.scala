@@ -65,6 +65,14 @@ object BSONFormatsSpec extends org.specs2.mutable.Specification {
       )
     }
 
+    "handle BSONUndefined" in {
+      val expectedJson = Json.obj("$undefined" -> true)
+
+      toJSON(BSONUndefined) must_== expectedJson and (
+        Json.toJson(BSONUndefined) must_== expectedJson
+      )
+    }
+
     "handle BSONDateTime" in {
       val dt = BSONDateTime(System.currentTimeMillis())
       val jdt = Json.toJson(dt)
@@ -149,6 +157,14 @@ object BSONFormatsSpec extends org.specs2.mutable.Specification {
 
       Json.fromJson[BSONTimestamp](jsonTs) must beLike {
         case JsSuccess(ts, _) => ts must_== BSONTimestamp(6065270725701271558L)
+      }
+    }
+
+    """convert JSON { "$undefined": true }""" in {
+      val jsonTs = Json.parse("""{ "$undefined": true }""")
+
+      Json.fromJson[BSONUndefined.type](jsonTs) must beLike {
+        case JsSuccess(ts, _) => ts must_== BSONUndefined
       }
     }
   }
