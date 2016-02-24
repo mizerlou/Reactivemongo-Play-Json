@@ -16,6 +16,7 @@
 package reactivemongo.play.json.commands
 
 import play.api.libs.json.{
+  Json,
   JsError,
   JsNumber,
   JsObject,
@@ -23,8 +24,8 @@ import play.api.libs.json.{
   JsString,
   JsSuccess,
   JsValue,
-  Reads,
-  Writes
+  OWrites,
+  Reads
 }
 
 import reactivemongo.api.ReadConcern
@@ -38,8 +39,8 @@ object CommonImplicits {
     def readResult(doc: JsObject): UnitBox.type = UnitBox
   }
 
-  implicit object ReadConcernWriter extends Writes[ReadConcern] {
-    def writes(concern: ReadConcern) = JsString(concern.level)
+  implicit object ReadConcernWriter extends OWrites[ReadConcern] {
+    def writes(concern: ReadConcern) = Json.obj("level" -> concern.level)
   }
 }
 

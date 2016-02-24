@@ -54,6 +54,7 @@ import reactivemongo.bson.{
   BSONRegex,
   BSONString,
   BSONTimestamp,
+  BSONUndefined,
   BSONValue,
   BSONWriter,
   Subtype
@@ -243,6 +244,25 @@ sealed trait BSONFormats extends LowerImplicitBSONHandlers {
     }
   }
 
+  implicit object BSONUndefinedFormat
+      extends PartialFormat[BSONUndefined.type] {
+    private object Undefined {
+      def unapply(obj: JsObject): Option[BSONUndefined.type] =
+        obj.value.get("$undefined") match {
+          case Some(JsBoolean(true)) => Some(BSONUndefined)
+          case _                     => None
+        }
+    }
+
+    val partialReads: PartialFunction[JsValue, JsResult[BSONUndefined.type]] = {
+      case Undefined(bson) => JsSuccess(bson)
+    }
+
+    val partialWrites: PartialFunction[BSONValue, JsValue] = {
+      case BSONUndefined => Json.obj("$undefined" -> true)
+    }
+  }
+
   implicit object BSONRegexFormat extends PartialFormat[BSONRegex] {
     val partialReads: PartialFunction[JsValue, JsResult[BSONRegex]] = {
       case js: JsObject if js.values.size == 1 && js.fields.head._1 == "$regex" =>
@@ -369,14 +389,8 @@ sealed trait BSONFormats extends LowerImplicitBSONHandlers {
       orElse(BSONSymbolFormat.partialReads).
       orElse(BSONArrayFormat.partialReads).
       orElse(BSONDocumentFormat.partialReads).
-      lift(json).getOrElse({
-        json match {
-          case JsNumber(n) => println(s"$n: ${n.getClass} -> ${n.ulp.isWhole} / ${n.isValidInt} / ${n.isValidLong}")
-          case _           => {}
-        }
-
-        JsError(s"unhandled json value: $json")
-      })
+      orElse(BSONUndefinedFormat.partialReads).
+      lift(json).getOrElse(JsError(s"unhandled json value: $json"))
 
   def toJSON(bson: BSONValue): JsValue = BSONObjectIDFormat.partialWrites.
     orElse(BSONJavaScriptFormat.partialWrites).
@@ -393,6 +407,7 @@ sealed trait BSONFormats extends LowerImplicitBSONHandlers {
     orElse(BSONSymbolFormat.partialWrites).
     orElse(BSONArrayFormat.partialWrites).
     orElse(BSONDocumentFormat.partialWrites).
+    orElse(BSONUndefinedFormat.partialWrites).
     lift(bson).getOrElse(throw new JSONException(s"Unhandled json value: $bson"))
 }
 
